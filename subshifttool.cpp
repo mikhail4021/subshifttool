@@ -219,7 +219,7 @@ class subSrt : public subWorker
         std::string tmpStr;
 		std::getline( this->_file, tmpStr );
 		
-		while ( trim( tmpStr ) == "" )
+		while ( !trim( tmpStr ).size() )
 		{
 			if ( _file.eof() ) break;
 			std::getline( this->_file, tmpStr );
@@ -234,14 +234,13 @@ class subSrt : public subWorker
             std::getline( this->_file, tmpStr );
 			
 			tmpStr = trim( tmpStr );	
-        }
-		
-		if ( _block.size() < 3 )
-			throw std::string( "wrong srt format" );
+		}
     }
 
     virtual void writeBlock( std::ofstream& out )
     {
+	if ( _block.size() < 2 ) return;
+	
         timeShift();
 		for ( std::size_t i = 0; i < _block.size(); ++i )
 		{
@@ -268,6 +267,7 @@ public:
 			std::cout << "read\n";
             writeBlock( myOut );
 			std::cout << "write\n";
+			if ( this->_file.eof() ) break;
         }
 		
 		myOut.close();
@@ -278,7 +278,12 @@ public:
 
 void printHelp()
 {
-
+	std::cout << "It is a tool for a time shifting in SRT subtitles "
+					"which are using UTF-8 or ASCII encoding.\n"
+					"\n"
+					"-s or --shift [time] --> to shift by time sec\n"
+					"-h or --help         --> to print help\n"
+					;
 }
 
 int main( int argc, char** argv )
@@ -295,6 +300,7 @@ int main( int argc, char** argv )
     std::queue< std::string > tasks;
 
     std::size_t i = 0;
+	++i; // skip name
     while ( i < argc )
     {
         if ( *(argv[i]) == '-' )
@@ -336,26 +342,34 @@ int main( int argc, char** argv )
     }
 
     // do shift:
-	
-	std::cout << " sec: " << timeShift << std::endl;
 
-	std::string task = std::string( "./" ) + tasks.back();
-	if ( task.substr( task.size() - 4 ) != ".srt" )
+	while ( !tasks.empty() )
 	{
-		std::cout << "ERROR: unknown format" << std::endl;
-		return 0;
-	}
-	
-	try
-	{
-		subSrt srtProcessor;
-		srtProcessor.init( task );
-		std::string result = task.substr( 0, task.size() - 4 ) + ".new.srt";
-		srtProcessor.doShift( result, timeShift );
-	}
-	catch( std::string& e )
-	{
-		std::cout << e << std::endl;
+		std::cout << tasks.size() << std::endl;
+		std::string task = std::string( "./" ) + tasks.front();
+		tasks.pop();
+		std::cout << tasks.size() << std::endl;
+		
+		std::cout << " --shifting " << task << " by " 
+										<< timeShift << " sec--" << std::endl;
+		
+		if ( task.substr( task.size() - 4 ) != ".srt" )
+		{
+			std::cout << "ERROR: unknown format" << std::endl;
+			return 0;
+		}
+		
+		try
+		{
+			subSrt srtProcessor;
+			srtProcessor.init( task );
+			std::string result = task.substr( 0, task.size() - 4 ) + ".new.srt";
+			srtProcessor.doShift( result, timeShift );
+		}
+		catch( std::string& e )
+		{
+			std::cout << e << std::endl;
+		}
 	}
 	
     return 0;
